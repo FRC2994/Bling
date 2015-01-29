@@ -1,12 +1,16 @@
-#include <Adafruit_NeoPixel.h>
+#include <Adafruit_NeoPixel.h>  // for the NeoPixel array
+#include "SPI.h"                // the following three headers are all required
+#include "Adafruit_GFX.h"       // to drive the TFT
+#include "Adafruit_ILI9341.h"
+
 // Bling control 
 //
 // This program uses code from the Arduino "Serial Event" example as well as
-// code from the Adafruit "strandTest" example. It implements a serial protocol
-// for sending commands on the serial line from a roboRIO to this program to
-// control the LEDs on an Adafruit neopixel strip. The protocol is quite
-// simple and is required because the Adafruit show method locks interrupts for
-// a long enough period (and there are some lengthy delay loops in other 
+// code from the Adafruit "strandtest" and "graphicstest"examples. It implements 
+// a serial protocol for sending commands on the serial line from a roboRIO to 
+// this program to control the LEDs on an Adafruit neopixel strip. The protocol is 
+// quite simple and is required because the NeoPixel "show" method locks interrupts
+// for a long enough period (and there are some lengthy delay loops in other 
 // places) that incomming characters can be dropped. To get around this the
 // code:
 //  - runs a function to display a selected pattern on the LED array,
@@ -25,23 +29,19 @@
 // currently supported command characters are documented in processCommand
 // (below)
 
-#include "SPI.h"
-#include "Adafruit_GFX.h"
-#include "Adafruit_ILI9341.h"
-
 // For the Adafruit shield, these are the default.
 #define TFT_DC 9
 #define TFT_CS 10
 
+// Adafruit TFT touchscreen object construction
 // Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
-
-int lineCount = 0;
 
 #define STRIP_PIN  6   // The Arduino digital IO pin used to send data to the LED array
 #define STATUS_PIN 8   // The status LED pin
 #define STRIP_LEN  240 // The number of pixels in the LED strip
 
+// NeoPixel object construction
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
 // Parameter 3 = pixel type flags, add together as needed:
@@ -222,7 +222,7 @@ void serialEvent() {
 
 void doBling() {
   
-  statusShow('R');
+  serialStatusShow('R');
   LCDStatusShow('R');
   // Set the staus LED on to indicate that we are running a bling function
   
@@ -337,7 +337,7 @@ void processCommand(char cmdChar, uint32_t cmdVal) {
       Serial.println(cmdChar);
   } // end switch(cmdChar)
   
-    statusShow('C');
+    serialStatusShow('C');
     LCDStatusShow('C');
     doneSent = false;
 }
@@ -363,9 +363,9 @@ void doBlink() {
 }
 
 // ----------------------------------------------------------------------------- //
-// statusShow
+// serialStatusShow
 // This is an all-purpose status output routine to let the outside world know 
-// what we are doing. With debugEnabled == false, it signals the outside world 
+// what we are doing. With debugEnabled == true, it signals the outside world 
 // via an LED on pin 8 as follows:
 //  - runing bling function: LED is ON
 //  - awaiting a command string on the serial line: flashing once per second
@@ -373,84 +373,106 @@ void doBlink() {
 // are output to the serial console once per second
 // ----------------------------------------------------------------------------- //
 
-void statusShow (const char prefix)
+void serialStatusShow (const char prefix)
 {      
-    Serial.print(prefix);
-    // Show the current running function and its configuration
-    Serial.print(": E=");
-    Serial.print(runningFunction);
-    Serial.print(" B=");
-    Serial.print(blingParmsTable[runningFunction].brightness);
-    Serial.print(" C=");
-    Serial.print(blingParmsTable[runningFunction].color);
-    Serial.print(" D=");
-    Serial.print(blingParmsTable[runningFunction].delay);
-    Serial.print(" P=");
-    Serial.print(blingParmsTable[runningFunction].pixelStart);
-    Serial.print(" Q=");
-    Serial.print(blingParmsTable[runningFunction].pixelEnd);
-    Serial.print(" R=");
-    Serial.print(blingParmsTable[runningFunction].repeat);
-    Serial.print(" ");
-    Serial.println(repeatCount);
-    
-    // Next line ...
-    Serial.print("   F=");
-    Serial.print(configFunction);
-    Serial.print(" B=");
-    Serial.print(blingParmsTable[configFunction].brightness);
-    Serial.print(" C=");
-    Serial.print(blingParmsTable[configFunction].color);
-    Serial.print(" D=");
-    Serial.print(blingParmsTable[configFunction].delay);
-    Serial.print(" P=");
-    Serial.print(blingParmsTable[configFunction].pixelStart);
-    Serial.print(" Q=");
-    Serial.print(blingParmsTable[configFunction].pixelEnd);
-    Serial.print(" R=");
-    Serial.println(blingParmsTable[configFunction].repeat);
-}
+    if (debugEnabled) {
+      // Show the current running function and its configuration
+      Serial.print(prefix);
+      Serial.print(": E=");
+      Serial.print(runningFunction);
+      Serial.print(" B=");
+      Serial.print(blingParmsTable[runningFunction].brightness);
+      Serial.print(" C=");
+      Serial.print(blingParmsTable[runningFunction].color);
+      Serial.print(" D=");
+      Serial.print(blingParmsTable[runningFunction].delay);
+      Serial.print(" P=");
+      Serial.print(blingParmsTable[runningFunction].pixelStart);
+      Serial.print(" Q=");
+      Serial.print(blingParmsTable[runningFunction].pixelEnd);
+      Serial.print(" R=");
+      Serial.print(blingParmsTable[runningFunction].repeat);
+      Serial.print(" ");
+      Serial.println(repeatCount);
+      
+      // Next line ...
+      Serial.print("   F=");
+      Serial.print(configFunction);
+      Serial.print(" B=");
+      Serial.print(blingParmsTable[configFunction].brightness);
+      Serial.print(" C=");
+      Serial.print(blingParmsTable[configFunction].color);
+      Serial.print(" D=");
+      Serial.print(blingParmsTable[configFunction].delay);
+      Serial.print(" P=");
+      Serial.print(blingParmsTable[configFunction].pixelStart);
+      Serial.print(" Q=");
+      Serial.print(blingParmsTable[configFunction].pixelEnd);
+      Serial.print(" R=");
+      Serial.println(blingParmsTable[configFunction].repeat);
+    }
+  }
+
+// ----------------------------------------------------------------------------- //
+// LCDStatusShow
+// This is an all-purpose status output routine to let the outside world know 
+// what we are doing. It is nearly identical to serialStatusShow - it has slight 
+// format differences and outputs to an attached TFT LCD touchscreen rather than
+// to the serial port.
+// With debugEnabled == true, it signals the outside world 
+// via an LED on pin 8 as follows:
+//  - runing bling function: LED is ON
+//  - awaiting a command string on the serial line: flashing once per second
+// With debugEnabled == true, the settings of all of the configurable parameters 
+// are output to the serial console once per second
+// ----------------------------------------------------------------------------- //
 
 void LCDStatusShow (const char prefix)
 {      
-    tft.fillScreen(ILI9341_BLACK);
-    tft.setCursor(0, 0);
-    tft.print(prefix);
-    // Show the current running function and its configuration
-    tft.print(": E");
-    tft.print(runningFunction);
-    tft.print(" B");
-    tft.print(blingParmsTable[runningFunction].brightness);
-    tft.print(" P");
-    tft.print(blingParmsTable[runningFunction].pixelStart);
-    tft.print(" Q");
-    tft.println(blingParmsTable[runningFunction].pixelEnd);
-    tft.print("   C");
-    tft.print(blingParmsTable[runningFunction].color);
-    tft.print(" D");
-    tft.println(blingParmsTable[runningFunction].delay);
-    tft.print("   R");
-    tft.print(blingParmsTable[runningFunction].repeat);
-    tft.print(" ");
-    tft.println(repeatCount);
-    tft.println(" ");
-    
-    // Next line ...
-    tft.print("   F");
-    tft.print(configFunction);
-    tft.print(" B");
-    tft.print(blingParmsTable[configFunction].brightness);
-    tft.print(" P");
-    tft.print(blingParmsTable[configFunction].pixelStart);
-    tft.print(" Q");
-    tft.println(blingParmsTable[configFunction].pixelEnd);
-    tft.print("   C");
-    tft.print(blingParmsTable[configFunction].color);
-    tft.print(" D");
-    tft.println(blingParmsTable[configFunction].delay);
-    tft.print("   R");
-    tft.println(blingParmsTable[configFunction].repeat);
-}
+    if (debugEnabled) {
+      // Since we aren't sophisticated enough (or, perhaps, lacking in update
+      // speed) we can't yet scroll the LCD dislay so we wipe it clean and start
+      // from the top each time we output a block of status info.
+      tft.fillScreen(ILI9341_BLACK);
+      tft.setCursor(0, 0);
+      
+      // Show the current running function and its configuration
+      tft.print(prefix);
+      tft.print(": E");
+      tft.print(runningFunction);
+      tft.print(" B");
+      tft.print(blingParmsTable[runningFunction].brightness);
+      tft.print(" P");
+      tft.print(blingParmsTable[runningFunction].pixelStart);
+      tft.print(" Q");
+      tft.println(blingParmsTable[runningFunction].pixelEnd);
+      tft.print("   C");
+      tft.print(blingParmsTable[runningFunction].color);
+      tft.print(" D");
+      tft.println(blingParmsTable[runningFunction].delay);
+      tft.print("   R");
+      tft.print(blingParmsTable[runningFunction].repeat);
+      tft.print(" ");
+      tft.println(repeatCount);
+      tft.println(" ");
+      
+      // Next line ...
+      tft.print("   F");
+      tft.print(configFunction);
+      tft.print(" B");
+      tft.print(blingParmsTable[configFunction].brightness);
+      tft.print(" P");
+      tft.print(blingParmsTable[configFunction].pixelStart);
+      tft.print(" Q");
+      tft.println(blingParmsTable[configFunction].pixelEnd);
+      tft.print("   C");
+      tft.print(blingParmsTable[configFunction].color);
+      tft.print(" D");
+      tft.println(blingParmsTable[configFunction].delay);
+      tft.print("   R");
+      tft.println(blingParmsTable[configFunction].repeat);
+    }
+  }
 
 // ----------------------------------------------------------------------------- //
 // colorWipe
