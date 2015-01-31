@@ -78,19 +78,20 @@ typedef enum {
 } function_t;
 
 // Global variables
-boolean      commandFlag      = false; // a flag indicating that there is a command req from the roboRIO
-boolean      debugEnabled     = true ; // set this to true to see a bunch of debug stuff on the serial output
-boolean      doneSent         = false; // a flag to indicate that we have sent the done signal to the roboRIO
-function_t   configFunction;           // the bling func we are currently configuring from received commands
-function_t   runningFunction;          // the bling function we are currently using on the LED array
-uint32_t     repeatCount;              // the number of remaining times we will execute the current bling func
-int          ledState         = LOW;   // ledState used to set the status LED
-uint32_t     prevLedMillis    = 0;     // will store last time status LED was updated
-uint32_t     prevShowMillis   = 0;     // will store the last time the debug status was output
+boolean      commandFlag         = false; // a flag indicating that there is a command req from the roboRIO
+boolean      serialDebugEnabled  = false; // set this to true to see a bunch of debug stuff on the serial output
+boolean      LcdDebugEnabled     = true ; // set this to true to see a bunch of debug stuff on the serial output
+boolean      doneSent            = false; // a flag to indicate that we have sent the done signal to the roboRIO
+function_t   configFunction;              // the bling func we are currently configuring from received commands
+function_t   runningFunction;             // the bling function we are currently using on the LED array
+uint32_t     repeatCount;                 // the number of remaining times we will execute the current bling func
+int          ledState            = LOW;   // ledState used to set the status LED
+uint32_t     prevLedMillis       = 0;     // will store last time status LED was updated
+uint32_t     prevShowMillis      = 0;     // will store the last time the debug status was output
 
 // the following variables are longs because the time, measured in miliseconds,
 // will quickly become a bigger number than can be stored in an int.
-long ledInterval  =  250;              // interval at which to blink (milliseconds)
+long ledInterval  =  500;                 // interval at which to blink (milliseconds)
 
 #define BLU 0x0000FF
 #define GRN 0x00FF00
@@ -162,7 +163,11 @@ void loop() {
       repeatCount--;
   } else {
       if (!doneSent) {
-        Serial.println("Done");
+        if (serialDebugEnabled) {
+          Serial.println("Ready");
+        } else {
+          Serial.println("R");
+        }
         doneSent = true; 
       }
   } // end !commandFlag ...
@@ -180,12 +185,17 @@ void serialEvent() {
   while (Serial.available()) {
      commandChar = Serial.read();   
   
-     if ('X' == commandChar) {
+     if ('I' == commandChar) {
        commandFlag = true;
-       Serial.println("Send a command");
+//       if (serialDebugEnabled)
+//       {
+//         Serial.println("Send a Command");
+//       } else {
+//         Serial.println("S");
+//       }
        tft.fillScreen(ILI9341_BLACK);
        tft.setCursor(0, 0);
-       tft.println("Send a command");
+       tft.println("Send a Command");
        continue;
      }   
      
@@ -333,8 +343,11 @@ void processCommand(char cmdChar, uint32_t cmdVal) {
       blingParmsTable[configFunction].repeat = cmdVal;
       break;
     default: 
-      Serial.print("Unrecognized cmdChar ");
-      Serial.println(cmdChar);
+      if (serialDebugEnabled) {
+        Serial.print("Unrecognized cmdChar: <");
+        Serial.print(cmdChar);
+        Serial.println(">");
+      }
   } // end switch(cmdChar)
   
     serialStatusShow('C');
@@ -354,9 +367,13 @@ void doBlink() {
     prevLedMillis = currentMillis;   
 
     // if the LED is off turn it on and vice-versa:
-    if (ledState == LOW)
+    if (ledState == LOW) {
+      ledState = HIGH;
+      tft.fillRect (312,232, 8,8,0xFFFF00);
+    } else {
+      tft.fillRect (312, 232,8,8,0);
       ledState = LOW;
-
+    }
     // set the LED with the ledState of the variable:
     digitalWrite(STATUS_PIN, ledState);
   }
@@ -375,7 +392,7 @@ void doBlink() {
 
 void serialStatusShow (const char prefix)
 {      
-    if (debugEnabled) {
+    if (serialDebugEnabled) {
       // Show the current running function and its configuration
       Serial.print(prefix);
       Serial.print(": E=");
@@ -429,7 +446,7 @@ void serialStatusShow (const char prefix)
 
 void LCDStatusShow (const char prefix)
 {      
-    if (debugEnabled) {
+    if (LcdDebugEnabled) {
       // Since we aren't sophisticated enough (or, perhaps, lacking in update
       // speed) we can't yet scroll the LCD dislay so we wipe it clean and start
       // from the top each time we output a block of status info.
@@ -484,8 +501,7 @@ void colorWipe(uint32_t c, uint8_t wait, uint16_t pixelStart, uint16_t pixelEnd)
   for(uint16_t i=pixelStart; i<pixelEnd; i++) {
       strip.setPixelColor(i, c);
       strip.show();
-      if (delayWithBreak (wait))
-      {
+      if (delayWithBreak (wait)) {
         return;
       }
   } // for
@@ -509,8 +525,7 @@ void colorWipeWithBlank(uint32_t c, uint8_t wait, uint16_t pixelStart, uint16_t 
   for(uint16_t i=pixelStart; i<pixelEnd; i++) {
       strip.setPixelColor(i, c);
       strip.show();
-      if (delayWithBreak (wait))
-      {
+      if (delayWithBreak (wait)) {
         return;
       }
   } // end for i
