@@ -53,7 +53,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(240, STRIP_PIN, NEO_GRB + NEO_KHZ800
 
 // ToDo: These no longer need to be globals. They should be declared in serialEvent
 char     commandChar = ' ';       // the last command from the roboRIO
-uint32_t commandVal = 0;
+uint32_t commandVal  = 0;
 
 // A structure to contain the configuration data for a specific bling function
 typedef struct {
@@ -80,7 +80,7 @@ typedef enum {
 // Global variables
 boolean      commandFlag         = false; // a flag indicating that there is a command req from the roboRIO
 boolean      serialDebugEnabled  = false; // set this to true to see a bunch of debug stuff on the serial output
-boolean      LcdDebugEnabled     = true ; // set this to true to see a bunch of debug stuff on the serial output
+boolean      lcdDebugEnabled     = true ; // set this to true to see a bunch of debug stuff on the serial output
 boolean      doneSent            = false; // a flag to indicate that we have sent the done signal to the roboRIO
 function_t   configFunction;              // the bling func we are currently configuring from received commands
 function_t   runningFunction;             // the bling function we are currently using on the LED array
@@ -139,12 +139,14 @@ void setup() {
   runningFunction = CLEAR;
   configFunction  = CLEAR;
   repeatCount     = blingParmsTable[CLEAR].repeat;
-  tft.begin();
-  tft.fillScreen(ILI9341_BLACK);
-  tft.setTextColor(ILI9341_YELLOW); 
-  tft.setTextSize(2);
-  tft.setCursor(0, 0);
-  tft.setRotation(1);
+  if (lcdDebugEnabled) {
+    tft.begin();
+    tft.fillScreen(ILI9341_BLACK);
+    tft.setTextColor(ILI9341_YELLOW); 
+    tft.setTextSize(2);
+    tft.setCursor(0, 0);
+    tft.setRotation(1);
+  }
 }
 
 // ----------------------------------------------------------------------------- //
@@ -166,7 +168,7 @@ void loop() {
         if (serialDebugEnabled) {
           Serial.println("Ready");
         } else {
-          Serial.println("R");
+          Serial.print("R");
         }
         doneSent = true; 
       }
@@ -187,15 +189,12 @@ void serialEvent() {
   
      if ('I' == commandChar) {
        commandFlag = true;
-//       if (serialDebugEnabled)
-//       {
-//         Serial.println("Send a Command");
-//       } else {
-//         Serial.println("S");
-//       }
-       tft.fillScreen(ILI9341_BLACK);
-       tft.setCursor(0, 0);
-       tft.println("Send a Command");
+       if (lcdDebugEnabled) {
+         tft.fillScreen(ILI9341_BLACK);
+         tft.setCursor(0, 0);
+         tft.println("Send a Command");
+       }
+       Serial.print("R");
        continue;
      }   
      
@@ -236,6 +235,9 @@ void doBling() {
   LCDStatusShow('R');
   // Set the staus LED on to indicate that we are running a bling function
   
+  if (lcdDebugEnabled) {
+    tft.fillRect (312,232, 8,8,0xFFFF00);
+  }
   digitalWrite(STATUS_PIN, HIGH);
   
   // Set the brightness for the function about to be called. We don't apply
@@ -369,9 +371,13 @@ void doBlink() {
     // if the LED is off turn it on and vice-versa:
     if (ledState == LOW) {
       ledState = HIGH;
-      tft.fillRect (312,232, 8,8,0xFFFF00);
+      if (lcdDebugEnabled) {
+        tft.fillRect (312,232, 8,8,0xFFFF00);
+      }
     } else {
-      tft.fillRect (312, 232,8,8,0);
+      if (lcdDebugEnabled) {
+        tft.fillRect (312, 232,8,8,0);
+      }
       ledState = LOW;
     }
     // set the LED with the ledState of the variable:
@@ -446,7 +452,7 @@ void serialStatusShow (const char prefix)
 
 void LCDStatusShow (const char prefix)
 {      
-    if (LcdDebugEnabled) {
+    if (lcdDebugEnabled) {
       // Since we aren't sophisticated enough (or, perhaps, lacking in update
       // speed) we can't yet scroll the LCD dislay so we wipe it clean and start
       // from the top each time we output a block of status info.
