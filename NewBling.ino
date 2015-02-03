@@ -37,8 +37,8 @@
 // Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
-#define STRIP_PIN  6   // The Arduino digital IO pin used to send data to the LED array
-#define STATUS_PIN 8   // The status LED pin
+#define STRIP_PIN    6 // The Arduino digital IO pin used to send data to the LED array
+#define STATUS_PIN   8 // The status LED pin
 #define STRIP_LEN  240 // The number of pixels in the LED strip
 
 // NeoPixel object construction
