@@ -14,11 +14,11 @@
 // places) that incomming characters can be dropped. To get around this the
 // code:
 //  - runs a function to display a selected pattern on the LED array,
-//  - polls the serial line for an "X" character (a command request
+//  - polls the serial line for an "I" character (a command "Interrupt"
 //    from the roboRIO). 
 //  - repeat ad infinitum
 // When it sees the comand character all pixel processing stops,
-// a go ahead character ("Y") is sent back to the roboRIO, and the serial line
+// a "ready" character ("R") is sent back to the roboRIO, and the serial line
 // is then monitored for a command string of one or more commands in the form:
 //   <cmd char><cmd_val>
 // the last of which is terminated with a "Z". For example:
@@ -27,10 +27,35 @@
 // Once received, the string is parsed, the commands executed, and the code
 // goes back into the simple display/serial poll loop described above. The
 // currently supported command characters are documented in processCommand
-// (below)
+// (below). The protocl looks like this:
+//
+//    Arduino                   roboRIO
+//       |                        |
+//       |<-----------------------I
+//       |                        |
+//       R----------------------->|
+//       |                        |
+//       |<---------------------<cmd>
+//       .                        .
+//       .                        .
+//       R----------------------->|  (roboRIO waits for command execution to
+//       .                        .   complete)
+//                  or
+//  
+//       R----------------------->|
+//       |                        |
+//       |<---------------------<cmd>
+//       |                        |
+//       |<-----------------------I  (roboRIO interrupts current command to
+//       |                        |   begin executing a new one)
+//       R----------------------->| 
+//       .                        .
 
-// For the Adafruit shield, these are the default.
-#define TFT_DC 9
+// To Do: add blink and rainbow blink
+//      : more detailed comments on debug usage
+//      : ifdefs to account for presence/absense of LCD
+// For the Adafruit shield, these are the defaults.
+#define TFT_DC  9
 #define TFT_CS 10
 
 // Adafruit TFT touchscreen object construction
@@ -80,7 +105,7 @@ typedef enum {
 // Global variables
 boolean      commandFlag         = false; // a flag indicating that there is a command req from the roboRIO
 boolean      serialDebugEnabled  = false; // set this to true to see a bunch of debug stuff on the serial output
-boolean      lcdDebugEnabled     = true ; // set this to true to see a bunch of debug stuff on the serial output
+boolean      lcdDebugEnabled     = false; // set this to true to see a bunch of debug stuff on the serial output
 boolean      doneSent            = false; // a flag to indicate that we have sent the done signal to the roboRIO
 function_t   configFunction;              // the bling func we are currently configuring from received commands
 function_t   runningFunction;             // the bling function we are currently using on the LED array
