@@ -50,6 +50,11 @@
 //       |                        |   begin executing a new one)
 //       R----------------------->| 
 //       .                        .
+//
+#define CMD_CHAR 'I'      // The character the roboRIO sends us to indicate it wants
+                          // to send a command
+#define RESPONSE_CHAR 'R' // The character we send to the roboRIO to let it know
+#define RESPONSE_STR  "R" // we are ready to receive a command
 
 // To Do: add blink and rainbow blink
 //      : more detailed comments on debug usage
@@ -193,7 +198,7 @@ void loop() {
         if (serialDebugEnabled) {
           Serial.println("Ready");
         } else {
-          Serial.print("R");
+          Serial.print(RESPONSE_STR);
         }
         doneSent = true; 
       }
@@ -212,14 +217,14 @@ void serialEvent() {
   while (Serial.available()) {
      commandChar = Serial.read();   
   
-     if ('I' == commandChar) {
+     if (CMD_CHAR == commandChar) {
        commandFlag = true;
        if (lcdDebugEnabled) {
          tft.fillScreen(ILI9341_BLACK);
          tft.setCursor(0, 0);
          tft.println("Send a Command");
        }
-       Serial.print("R");
+       Serial.print(RESPONSE_STR);
        continue;
      }   
      
@@ -256,8 +261,8 @@ void serialEvent() {
 
 void doBling() {
   
-  serialStatusShow('R');
-  LCDStatusShow('R');
+  serialStatusShow(RESPONSE_CHAR);
+  LCDStatusShow(RESPONSE_CHAR);
   // Set the staus LED on to indicate that we are running a bling function
   
   if (lcdDebugEnabled) {
@@ -365,7 +370,7 @@ void processCommand(char cmdChar, uint32_t cmdVal) {
       }
       blingParmsTable[configFunction].pixelEnd = cmdVal;
       break;
-    case 'R':
+    case RESPONSE_CHAR:
       // Set the repeat count for the function being configured
       blingParmsTable[configFunction].repeat = cmdVal;
       break;
@@ -678,7 +683,7 @@ boolean delayWithBreak (uint32_t count)
     // the serialEvent routine
     char tmp = Serial.peek();
 
-     if ('X' == tmp)
+     if (CMD_CHAR == tmp)
       {
         return true;
       }
