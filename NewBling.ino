@@ -56,9 +56,9 @@
 #define RESPONSE_CHAR 'R' // The character we send to the roboRIO to let it know
 #define RESPONSE_STR  "R" // we are ready to receive a command
 
-// To Do: add blink and rainbow blink
-//      : more detailed comments on debug usage
-//      : ifdefs to account for presence/absense of LCD
+// ToDo : add blink and rainbow blink
+//      : more comments on debug usage
+
 // For the Adafruit shield, these are the defaults.
 #define TFT_DC  9
 #define TFT_CS 10
@@ -67,8 +67,15 @@
 // Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
+// Uncomment the following line if the LCD panel is installed 
+//#define LCD_PRESENT
+#ifdef LCD_PRESENT
+#define STATUS_PIN   8 // The status LED is the on-board LED
+#else
+#define STATUS_PIN  13 // The status LED is off-board
+#endif
+
 #define STRIP_PIN    6 // The Arduino digital IO pin used to send data to the LED array
-#define STATUS_PIN   8 // The status LED pin
 #define STRIP_LEN  240 // The number of pixels in the LED strip
 
 // NeoPixel object construction
@@ -104,13 +111,19 @@ typedef enum {
   RAINBOW,               // 4
   THEATRE_CHASE_RAINBOW, // 5
   COLOR_BAR,             // 6
+  COLOR_BAR_FLASH,       // 7
+  BOUNCE,                // 8
   NUM_FUNCTIONS     
 } function_t;
 
 // Global variables
 boolean      commandFlag         = false; // a flag indicating that there is a command req from the roboRIO
 boolean      serialDebugEnabled  = false; // set this to true to see a bunch of debug stuff on the serial output
-boolean      lcdDebugEnabled     = false; // set this to true to see a bunch of debug stuff on the serial output
+#ifdef LCD_PRESENT
+boolean      lcdDebugEnabled     = true;  // set this to false if you don't want to see debug msgs on the LCD 
+#else                                     // even if it is present (writing to the panel slows cmd responses)
+boolean      lcdDebugEnabled     = false; // there is not LCD panel present so turn off debug
+#endif
 boolean      doneSent            = false; // a flag to indicate that we have sent the done signal to the roboRIO
 function_t   configFunction;              // the bling func we are currently configuring from received commands
 function_t   runningFunction;             // the bling function we are currently using on the LED array
@@ -146,7 +159,9 @@ blingParms_t blingParmsTable [NUM_FUNCTIONS] = {
   {TUR,  25,  64,   0, 240,   5}, // 3 - theatreChase
   { UN,  25,  64,   0, 240,   5}, // 4 - rainbow
   {YEL,  25,  64,   0, 240,   5}, // 5 - theatreChaseRainbow
-  {RED,  25,  64,   0, 240,   5}  // 6 - colorBar
+  {RED,  25,  64,   0, 240,   5}, // 6 - colorBar
+  {YEL, 250,  64,   0, 240,  50}, // 7 - colorBarFlash
+  {RED,  50,  64,  25,  50,  10}  // 8 - bounce
 };
 
 // ----------------------------------------------------------------------------- //
@@ -224,7 +239,14 @@ void serialEvent() {
          tft.setCursor(0, 0);
          tft.println("Send a Command");
        }
-       Serial.print(RESPONSE_STR);
+       
+       if (serialDebugEnabled) {
+         Serial.println("Ready");
+       } else {
+         Serial.print(RESPONSE_STR);
+       }
+
+       doneSent  = true;
        continue;
      }   
      
@@ -313,6 +335,18 @@ void doBling() {
                 blingParmsTable[runningFunction].pixelStart,
                 blingParmsTable[runningFunction].pixelEnd);
        break; 
+    case COLOR_BAR_FLASH:
+       colorBarFlash(blingParmsTable[runningFunction].color,
+                     blingParmsTable[runningFunction].pixelStart,
+                     blingParmsTable[runningFunction].pixelEnd,
+                     blingParmsTable[runningFunction].delay);
+       break; 
+    case BOUNCE:
+       bounce(blingParmsTable[runningFunction].color,
+              blingParmsTable[runningFunction].pixelStart,
+              blingParmsTable[runningFunction].pixelEnd,
+              blingParmsTable[runningFunction].delay);
+       break; 
     default:
        break;
   } // end switch
@@ -387,6 +421,7 @@ void processCommand(char cmdChar, uint32_t cmdVal) {
     doneSent = false;
 }
 
+// ToDo: proper head comment block
 void doBlink() {
   // check to see if it's time to blink the LED; that is, if the 
   // difference between the current time and last time you blinked 
@@ -417,6 +452,7 @@ void doBlink() {
 
 // ----------------------------------------------------------------------------- //
 // serialStatusShow
+// ToDo - clean up these comments
 // This is an all-purpose status output routine to let the outside world know 
 // what we are doing. With debugEnabled == true, it signals the outside world 
 // via an LED on pin 8 as follows:
@@ -468,6 +504,7 @@ void serialStatusShow (const char prefix)
 
 // ----------------------------------------------------------------------------- //
 // LCDStatusShow
+// ToDo - clean up these comments
 // This is an all-purpose status output routine to let the outside world know 
 // what we are doing. It is nearly identical to serialStatusShow - it has slight 
 // format differences and outputs to an attached TFT LCD touchscreen rather than
@@ -664,6 +701,82 @@ void colorBar(uint32_t c, uint16_t pixelStart, uint16_t pixelEnd) {
   return;
 }
 
+// ----------------------------------------------------------------------------- //
+// colorBarFlash
+// ----------------------------------------------------------------------------- //
+
+void colorBarFlash(uint32_t c, uint16_t pixelStart, uint16_t pixelEnd, uint16_t wait) {
+  
+  uint32_t color;
+  
+  for(uint16_t j=0; j<100; j++) {
+    if(j%2) {
+      color = c;
+    } else {
+      color = 0;
+    }
+    
+    for(uint16_t i=pixelStart; i<pixelEnd; i++) {
+        strip.setPixelColor(i, color);
+    } 
+    
+    if (delayWithBreak(wait)) {
+      break;
+    }
+    strip.show();
+  }
+  return;
+}
+// ----------------------------------------------------------------------------- //
+// bounce
+// ----------------------------------------------------------------------------- //
+
+void bounce(uint32_t color, uint16_t pixelStart, uint16_t pixelEnd, uint16_t wait) {
+  uint16_t a, b, c, d = 0;
+  
+  a = pixelStart;
+  
+  if ((pixelEnd - pixelStart)%2) {
+    d = pixelEnd;
+  } else {
+    d = pixelEnd - 1;
+  }
+    
+  uint16_t count = (d - a)/2  + 1;
+  
+  for (uint16_t i = 0; i < count; i++) {
+    strip.setPixelColor(a, color);
+    strip.setPixelColor(d, color);
+    strip.show();
+
+    if (delayWithBreak(wait)) {
+      break;
+    }
+    
+    strip.setPixelColor(a, 0);
+    strip.setPixelColor(d, 0);
+    strip.show();
+
+    a++;
+    d--;
+  }
+  
+  for (uint16_t i = 0; i < count; i++) {
+    a--;
+    d++;
+    strip.setPixelColor(a, color);
+    strip.setPixelColor(d, color);
+    strip.show();
+
+    if (delayWithBreak(wait)) {
+      break;
+    }
+    strip.setPixelColor(a, 0);
+    strip.setPixelColor(d, 0);
+    strip.show();
+  }
+
+}
 // ----------------------------------------------------------------------------- //
 // delayWithBreak
 // A delay function which checks the serial device every millisecond to
