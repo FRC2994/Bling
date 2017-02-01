@@ -2,7 +2,7 @@
 #include "SPI.h"                // the following three headers are all required
 #include "Adafruit_GFX.h"       // to drive the TFT
 #include "Adafruit_ILI9341.h"
-
+#
 // Bling control 
 //
 // This program uses code from the Arduino "Serial Event" example as well as
