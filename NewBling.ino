@@ -204,6 +204,7 @@ void loop() {
   doBlink();
     
   if ((!commandFlag) && (repeatCount > 0)) {
+    
   // No command reception/processing is occurring so we are OK to go ahead
   // and run a bling function
       doBling();
@@ -358,6 +359,7 @@ void doBling() {
 // ----------------------------------------------------------------------------- //
 
 void processCommand(char cmdChar, uint32_t cmdVal) {
+  
   // Debug
   // Serial.print(cmdChar);
   // Serial.print(" ");
@@ -422,6 +424,7 @@ void processCommand(char cmdChar, uint32_t cmdVal) {
 }
 
 // ToDo: proper head comment block
+
 void doBlink() {
   // check to see if it's time to blink the LED; that is, if the 
   // difference between the current time and last time you blinked 
@@ -727,6 +730,7 @@ void colorBarFlash(uint32_t c, uint16_t pixelStart, uint16_t pixelEnd, uint16_t 
   }
   return;
 }
+
 // ----------------------------------------------------------------------------- //
 // bounce
 // ----------------------------------------------------------------------------- //
@@ -777,6 +781,7 @@ void bounce(uint32_t color, uint16_t pixelStart, uint16_t pixelEnd, uint16_t wai
   }
 
 }
+
 // ----------------------------------------------------------------------------- //
 // delayWithBreak
 // A delay function which checks the serial device every millisecond to
